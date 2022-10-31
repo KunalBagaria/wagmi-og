@@ -1,57 +1,78 @@
-// @ts-ignore
-const { createConverter } = require('convert-svg-to-png');
-const { OgSVG } = require('./svg');
-const imageDataURI = require('image-data-uri');
-const express = require('express')
-const fs = require('fs')
-const path = require('path')
+import sharp from 'sharp';
+import { InviteOG } from './invite';
+import { ProfileOG } from './profile';
+import { ArticleOG } from './article';
+// @ts-expect-error
+import imageDataURI from 'image-data-uri';
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 
-const converter = createConverter({
-    puppeteer: { args: ['--no-sandbox'] }
-});
-
 const convert = async (svg: string) => {
-    const image = await converter.convert(svg)
-    return image
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  return png;
 }
 
-app.get('/:name/:link/:image', async (req: any, res: any) => {
-    if (!req.params.name || !req.params.link || !req.params.image) return
-    try {
-        const imageURLBuffer = Buffer.from(req.params.image, 'base64')
-        const imageURL = imageURLBuffer.toString()
-        const imageData = await imageDataURI.encodeFromURL(imageURL);
-        const png = await convert(
-            OgSVG(req.params.name, req.params.link, imageData)
-        );
-        res.set('Content-Type', 'image/png');
-        res.send(png);
-    } catch (e) {
-		console.error(e)
-        res.set('Content-Type', 'image/png');
-		const defaultOG = fs.readFileSync(path.join(__dirname, '..', 'static', 'meta.png'))
-		res.send(defaultOG)
-    }
+app.get('/article/:data', async (req, res) => {
+  const base64Data = decodeURIComponent(req.params.data);
+  const dataString = Buffer.from(base64Data, 'base64').toString();
+  try {
+    const data = JSON.parse(dataString);
+    if (!data.title || !data.name || !data.image) return
+    const imageData = await imageDataURI.encodeFromURL(data.image);
+    const png = await convert(
+      ArticleOG(data.title, data.name, imageData)
+    );
+    res.set('Content-Type', 'image/png');
+    res.send(png);
+  } catch (e) {
+    console.error(e)
+    res.set('Content-Type', 'image/png');
+    const defaultOG = fs.readFileSync(path.join(__dirname, '..', 'static', 'meta.png'))
+    res.send(defaultOG)
+  }
+})
+
+app.get('/user/:data', async (req, res) => {
+  const base64Data = decodeURIComponent(req.params.data);
+  const dataString = Buffer.from(base64Data, 'base64').toString();
+  try {
+    const data = JSON.parse(dataString);
+    if (!data.name || !data.username || !data.bio || !data.image) return
+    const imageData = await imageDataURI.encodeFromURL(data.image);
+    const png = await convert(
+      ProfileOG(data.name, data.username, data.bio, imageData)
+    );
+    res.set('Content-Type', 'image/png');
+    res.send(png);
+  } catch (e) {
+    console.error(e)
+    res.set('Content-Type', 'image/png');
+    const defaultOG = fs.readFileSync(path.join(__dirname, '..', 'static', 'meta.png'))
+    res.send(defaultOG)
+  }
 });
 
-app.get('/random/gradient', async (req: any, res: any) => {
-	try {
-		const directory = path.join(__dirname, '..', 'static', 'random-gradients')
-		const files = fs.readdirSync(directory)
-		const randomFile = files[Math.floor(Math.random() * files.length)]
-		const randomGradient = fs.readFileSync(path.join(directory, randomFile))
-		res.set('Content-Type', 'image/png');
-		res.send(randomGradient);
-	} catch (e) {
-		console.error(e)
-		res.status(500).send(e);
-	}
-})
+app.get('/invite/:name', async (req, res) => {
+  try {
+    const name = req.params.name;
+    const png = await convert(
+      InviteOG(name)
+    );
+    res.set('Content-Type', 'image/png');
+    res.send(png);
+  } catch (e) {
+    console.error(e)
+    res.set('Content-Type', 'image/png');
+    const defaultOG = fs.readFileSync(path.join(__dirname, '..', 'static', 'meta.png'))
+    res.send(defaultOG)
+  }
+});
 
 const port = process.env.PORT || 3000;
 
 app.listen(process.env.PORT || port, () =>  {
-    console.log('The server is running on', port)
-})
+  console.log('The server is running on', port)
+});
