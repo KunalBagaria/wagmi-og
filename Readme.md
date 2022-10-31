@@ -1,4 +1,4 @@
-# Opengraph Image Generator for Wordcel dApp
+# OG Image Generator for wagmi.bio
 
 ```
 yarn && yarn build && yarn start
